@@ -2,20 +2,32 @@ import express from "express";
 import {createServer} from "http";
 import {Server} from 'socket.io';
 import mongoose from 'mongoose';
+import * as usersController from "./controllers/users"
+import bodyParser from "body-parser";
 
 
 const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer);
 
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true}));
+
 app.get("/", (req, res) => {
     res.send('API created');
 });
+
+app.post('/api/users', usersController.register);
 
 io.on('connection', () => {
     console.log("connect");
 })
 
-httpServer.listen(3001, () => {
-    console.log('API listening on port 3001');
-})
+mongoose.connect('mongodb://localhost:27017/petgov').then(() => {
+    console.log('connected to mongodb');
+
+    httpServer.listen(3001, () => {
+        console.log('API listening on port 3001');
+    });
+});  
+
