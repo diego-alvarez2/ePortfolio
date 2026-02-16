@@ -1,5 +1,19 @@
 import { Request, Response, NextFunction  } from "express";
 import UserModel from '../models/user'
+import { UserDocument } from "../types/user.interface";
+import { Error } from "mongoose";
+import jwt from 'jsonwebtoken'
+import { secret } from "../config";
+
+const normalizeUser = (user: UserDocument) => {
+    const token = jwt.sign({id: user._id, email: user.email}, secret)
+    return {
+        email: user.email,
+        username: user.username,
+        id: user._id,
+        token
+    }
+}
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -8,8 +22,13 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
             username: req.body.username,
             password: req.body.password,
         });
-        console.log()
+        const savedUser = await newUser.save()
+        res.send(normalizeUser(savedUser))
     } catch (err) {
+        if (err instanceof Error.ValidationError) { // This if error is for getting back a nicer error instead of an internal error
+            const messages = Object.values(err.errors).map(err => err.message)
+            return res.status(422).json(messages)
+        }
         next(err);
     }
 };
