@@ -6,6 +6,8 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Allow images and dev connections; Angular SSR may send default-src 'none' -->
+  <meta http-equiv="Content-Security-Policy" content="img-src 'self' data: blob:; connect-src 'self' http://localhost:* https://localhost:* ws: wss:;">
 </head>
 <body>
   <app-root></app-root>

@@ -1,14 +1,12 @@
 import { Document } from "mongoose";
 
-export interface User { // Definition of User
-    
-    // We don't have any Id defined because is coming from mongodb "Document" 
+export interface User {
     email: string;
     username: string;
     password: string;
     createdAt: Date;
+    updatedAt: Date;
 }
-
 export interface UserDocument extends User, Document {
-    validatePassword(param1: string): string
-} // New interface for UserDocument
+    validatePassword(param1: string): Promise<boolean>;
+}  
