@@ -8,5 +8,6 @@ export interface User {
     updatedAt: Date;
 }
 export interface UserDocument extends User, Document {
+    id: string;
     validatePassword(param1: string): Promise<boolean>;
 }  

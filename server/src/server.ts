@@ -2,29 +2,35 @@ import express from "express";
 import {createServer} from "http";
 import {Server} from 'socket.io';
 import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken';
 import * as boardsController from './controllers/boards';
-import * as usersController from "./controllers/users"
+import * as columnsController from './controllers/columns';
+import * as usersController from "./controllers/users";
+import * as tasksController from "./controllers/tasks";
 import bodyParser from "body-parser";
 import authMiddleware from "./middlewares/auth";
 import cors from 'cors';
-
+import { SocketEventsEnum } from "./types/socketEvents.enum";
+import { secret } from "./config";
+import userModel from "./models/userModel";
+import { Socket } from "./types/socket.interface";
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer);
+const io = new Server(httpServer, {cors: {origin: "*",},});
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true}));
 
-/*
+
 mongoose.set('toJSON', {
     virtuals: true,
     transform: (_, converted) => {
-        delete converted._id;
+        Reflect.deleteProperty(converted, '_id');
     },
 });
-*/
+
 
 app.get("/", (req, res) => {
     res.send('API created');
@@ -34,10 +40,41 @@ app.post('/api/users', usersController.register);
 app.post('/api/users/login', usersController.login);
 app.get('/api/user', authMiddleware, usersController.currentUser);
 app.get('/api/boards', authMiddleware, boardsController.getBoards);
+app.get('/api/boards/:boardId', authMiddleware, boardsController.getBoard);
+app.get('/api/boards/:boardId/columns', authMiddleware, columnsController.getColumns);
+app.get('/api/boards/:boardId/tasks', authMiddleware, tasksController.getTasks);
+app.post('/api/boards',authMiddleware, boardsController.createBoards);
 
-io.on('connection', () => {
-    console.log("connect");
-});     
+ io.use(async (socket: Socket, next) => {
+    try {
+        const token = (socket.handshake.auth.token as string) ?? "";
+        const data = jwt.verify(token.split(' ')[1], secret) as {id: string; email: string};
+        const user = await userModel.findById(data.id);
+        if (!user) {
+            return next(new Error('Authentication error'));
+        }
+        socket.data.user = user;
+        (socket as Socket).user = user;
+        next();
+    } catch (err) {
+        next(new Error('Authentication error'));
+
+    }
+ }).on('connection', (socket) => {
+    console.log('connect');
+    socket.on(SocketEventsEnum.boardsJoin, (data) => {
+        boardsController.joinBoard(io, socket, data);
+    });
+    socket.on(SocketEventsEnum.boardsLeave, (data) => {
+        boardsController.leaveBoard(io, socket, data);
+    });
+    socket.on(SocketEventsEnum.columnsCreate, data => {
+        columnsController.createColumn(io, socket, data)
+    });
+    socket.on(SocketEventsEnum.tasksCreate, data => {
+        tasksController.createTask(io, socket, data)
+    });
+});    
 
 mongoose.connect('mongodb://localhost:27017/petgov').then(() => {
     console.log('connected to mongodb');
@@ -46,4 +83,8 @@ mongoose.connect('mongodb://localhost:27017/petgov').then(() => {
         console.log('API listening on port 3001');
     });
 });  
+
+mongoose.connection.on('connected', () => {
+    console.log('Mongo connected to:', mongoose.connection.host);
+  });
 

@@ -5,6 +5,7 @@ import { HttpClient } from "@angular/common/http";
 import { environment } from "../../../environments/environment";
 import { RegisterRequestInterface } from "../types/registerRequest.interface";
 import { LoginRequestInterface } from "../types/loginRequest.interface";
+import { SocketService } from "../../shared/services/socket.service";
 
 @Injectable({
     providedIn: 'root'
@@ -15,7 +16,7 @@ export class AuthService {
 
     isLoggedIn$ = this.currentUser$.pipe(map(currentUser => !!currentUser));
     
-    constructor(private http: HttpClient) {}
+    constructor(private http: HttpClient, private socketService: SocketService) {}
 
     getCurrentUser(): Observable<CurrentUserInterface> {
         const url = environment.apiUrl + '/user';
@@ -38,5 +39,38 @@ export class AuthService {
 
     setCurrentUser(currentUser: CurrentUserInterface | null): void {
         this.currentUser$.next(currentUser);
+
+        if (currentUser) {
+            this.socketService.setupSocketConnection(currentUser);
+        }
+        else {
+            this.socketService.disconnect();
+        }
     }
+
+    logout(): void {
+        localStorage.removeItem('token');
+        this.currentUser$.next(null);
+        this.socketService.disconnect();
+    }
+
+    initializeAuth(): void {
+        const token = localStorage.getItem('token');
+      
+        if (!token) {
+          this.currentUser$.next(null);
+          return;
+        }
+      
+        this.getCurrentUser().subscribe({
+          next: (user) => {
+            this.currentUser$.next(user);
+            this.socketService.setupSocketConnection(user);
+          },
+          error: () => {
+            this.currentUser$.next(null);
+            localStorage.removeItem('token');
+          }
+        });
+      }
 }

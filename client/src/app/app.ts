@@ -2,6 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AuthModule } from './auth/auth.module';
 import { AuthService } from './auth/services/auth.service';
+import { SocketService } from './shared/services/socket.service';
 
 @Component({
   selector: 'app-root',
@@ -10,10 +11,21 @@ import { AuthService } from './auth/services/auth.service';
   
 })
 export class App implements OnInit {
-  constructor(private authService: AuthService) {}
+  
+  constructor(private authService: AuthService, private socketService: SocketService) {}
+  
   ngOnInit(): void {
-      this.authService.getCurrentUser().subscribe({
+      
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      this.authService.setCurrentUser(null);
+      return;
+    }
+    
+    this.authService.getCurrentUser().subscribe({
       next: (currentUser) => {
+          this.socketService.setupSocketConnection(currentUser);
           this.authService.setCurrentUser(currentUser);
         },
         error: (err) => {

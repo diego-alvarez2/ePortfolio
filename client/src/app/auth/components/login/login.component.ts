@@ -5,6 +5,7 @@ import { ReactiveFormsModule } from "@angular/forms";
 import { AuthService } from "../../services/auth.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { CommonModule } from "@angular/common";
+import { SocketService } from "../../../shared/services/socket.service";
 
 @Component({
     standalone: true,
@@ -19,7 +20,7 @@ export class LoginComponent implements OnInit {
     errorMessage: string | null = null;
     form!: FormGroup;
 
-    constructor(private fb: FormBuilder, private authService: AuthService, private router: Router) {}
+    constructor(private fb: FormBuilder, private authService: AuthService, private router: Router, private socketService: SocketService) {}
   
     ngOnInit(): void {
       this.form = this.fb.group({
@@ -33,6 +34,7 @@ export class LoginComponent implements OnInit {
             next: (currentUser) => {
                 console.log('currentUser', currentUser);
                 this.authService.setToken(currentUser);
+                this.socketService.setupSocketConnection(currentUser);
                 this.authService.setCurrentUser(currentUser);
                 this.errorMessage = null;
                 this.router.navigateByUrl('/');
